@@ -102,7 +102,6 @@ allow syslogd_t self:cap_userns sys_ptrace;
 allow passt_t self:process setcap;
 allow passt_t self:capability { sys_tty_config setpcap net_bind_service setuid setgid};
 allow passt_t self:cap_userns { setpcap sys_admin sys_ptrace };
-allow passt_t self:user_namespace create;
 
 auth_read_passwd(passt_t)
 
