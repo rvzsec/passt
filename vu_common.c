@@ -140,9 +140,9 @@ void vu_flush(const struct vu_dev *vdev, struct vu_virtq *vq,
 	int i;
 
 	for (i = 0; i < elem_cnt; i++)
-		vu_queue_fill(vq, &elem[i], elem[i].in_sg[0].iov_len, i);
+		vu_queue_fill(vdev, vq, &elem[i], elem[i].in_sg[0].iov_len, i);
 
-	vu_queue_flush(vq, elem_cnt);
+	vu_queue_flush(vdev, vq, elem_cnt);
 	vu_queue_notify(vdev, vq);
 }
 
@@ -194,8 +194,8 @@ static void vu_handle_tx(struct vu_dev *vdev, int index,
 		int i;
 
 		for (i = 0; i < count; i++)
-			vu_queue_fill(vq, &elem[i], 0, i);
-		vu_queue_flush(vq, count);
+			vu_queue_fill(vdev, vq, &elem[i], 0, i);
+		vu_queue_flush(vdev, vq, count);
 		vu_queue_notify(vdev, vq);
 	}
 }

@@ -580,28 +580,34 @@ bool vu_queue_rewind(struct vu_virtq *vq, unsigned int num)
 
 /**
  * vring_used_write() - Write an entry in the used ring
+ * @dev:	Vhost-user device
  * @vq:		Virtqueue
  * @uelem:	Entry to write
  * @i:		Index of the entry in the used ring
  */
-static inline void vring_used_write(struct vu_virtq *vq,
+static inline void vring_used_write(const struct vu_dev *vdev,
+				    struct vu_virtq *vq,
 				    const struct vring_used_elem *uelem, int i)
 {
 	struct vring_used *used = vq->vring.used;
 
 	used->ring[i] = *uelem;
+	(void)vdev;
 }
+
 
 /**
  * vu_queue_fill_by_index() - Update information of a descriptor ring entry
  *			      in the used ring
+ * @dev:	Vhost-user device
  * @vq:		Virtqueue
  * @index:	Descriptor ring index
  * @len:	Size of the element
  * @idx:	Used ring entry index
  */
-void vu_queue_fill_by_index(struct vu_virtq *vq, unsigned int index,
-			    unsigned int len, unsigned int idx)
+void vu_queue_fill_by_index(const struct vu_dev *vdev, struct vu_virtq *vq,
+			    unsigned int index, unsigned int len,
+			    unsigned int idx)
 {
 	struct vring_used_elem uelem;
 
@@ -612,7 +618,7 @@ void vu_queue_fill_by_index(struct vu_virtq *vq, unsigned int index,
 
 	uelem.id = htole32(index);
 	uelem.len = htole32(len);
-	vring_used_write(vq, &uelem, idx);
+	vring_used_write(vdev, vq, &uelem, idx);
 }
 
 /**
@@ -623,30 +629,36 @@ void vu_queue_fill_by_index(struct vu_virtq *vq, unsigned int index,
  * @len:	Size of the element
  * @idx:	Used ring entry index
  */
-void vu_queue_fill(struct vu_virtq *vq, const struct vu_virtq_element *elem,
-		   unsigned int len, unsigned int idx)
+void vu_queue_fill(const struct vu_dev *vdev, struct vu_virtq *vq,
+		   const struct vu_virtq_element *elem, unsigned int len,
+		   unsigned int idx)
 {
-	vu_queue_fill_by_index(vq, elem->index, len, idx);
+	vu_queue_fill_by_index(vdev, vq, elem->index, len, idx);
 }
 
 /**
  * vring_used_idx_set() - Set the descriptor ring current index
+ * @dev:	Vhost-user device
  * @vq:		Virtqueue
  * @val:	Value to set in the index
  */
-static inline void vring_used_idx_set(struct vu_virtq *vq, uint16_t val)
+static inline void vring_used_idx_set(const struct vu_dev *vdev,
+				      struct vu_virtq *vq, uint16_t val)
 {
 	vq->vring.used->idx = htole16(val);
+	(void)vdev;
 
 	vq->used_idx = val;
 }
 
 /**
  * vu_queue_flush() - Flush the virtqueue
+ * @dev:	Vhost-user device
  * @vq:		Virtqueue
  * @count:	Number of entry to flush
  */
-void vu_queue_flush(struct vu_virtq *vq, unsigned int count)
+void vu_queue_flush(const struct vu_dev *vdev, struct vu_virtq *vq,
+		    unsigned int count)
 {
 	uint16_t old, new;
 
@@ -658,7 +670,7 @@ void vu_queue_flush(struct vu_virtq *vq, unsigned int count)
 
 	old = vq->used_idx;
 	new = old + count;
-	vring_used_idx_set(vq, new);
+	vring_used_idx_set(vdev, vq, new);
 	vq->inuse -= count;
 	if ((uint16_t)(new - vq->signalled_used) < (uint16_t)(new - old))
 		vq->signalled_used_valid = false;
