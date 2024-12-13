@@ -37,6 +37,10 @@ enum vhost_user_protocol_feature {
 	VHOST_USER_PROTOCOL_F_INFLIGHT_SHMFD = 12,
 	VHOST_USER_PROTOCOL_F_INBAND_NOTIFICATIONS = 14,
 	VHOST_USER_PROTOCOL_F_CONFIGURE_MEM_SLOTS = 15,
+	VHOST_USER_PROTOCOL_F_STATUS = 16,
+	/* Feature 17 reserved for VHOST_USER_PROTOCOL_F_XEN_MMAP. */
+	VHOST_USER_PROTOCOL_F_SHARED_OBJECT = 18,
+	VHOST_USER_PROTOCOL_F_DEVICE_STATE = 19,
 
 	VHOST_USER_PROTOCOL_F_MAX
 };
@@ -83,6 +87,11 @@ enum vhost_user_request {
 	VHOST_USER_GET_MAX_MEM_SLOTS = 36,
 	VHOST_USER_ADD_MEM_REG = 37,
 	VHOST_USER_REM_MEM_REG = 38,
+	VHOST_USER_SET_STATUS = 39,
+	VHOST_USER_GET_STATUS = 40,
+	VHOST_USER_GET_SHARED_OBJECT = 41,
+	VHOST_USER_SET_DEVICE_STATE_FD = 42,
+	VHOST_USER_CHECK_DEVICE_STATE = 43,
 	VHOST_USER_MAX
 };
 
@@ -129,11 +138,38 @@ struct vhost_user_memory {
 };
 
 /**
+ * struct vhost_user_log - Address and size of the shared memory region used
+ *			   to log page update
+ * @mmap_size:		Size of the shared memory region
+ * @mmap_offset:	Offset of the shared memory region
+ */
+struct vhost_user_log {
+	uint64_t mmap_size;
+	uint64_t mmap_offset;
+};
+
+/**
+ * struct vhost_user_transfer_device_state - Set the direction and phase
+ *                                           of the backend device state fd
+ * @direction:		Device state transfer direction (save or load)
+ * @phase:		Migration phase (only stopped is supported)
+ */
+struct vhost_user_transfer_device_state {
+	uint32_t direction;
+#define VHOST_USER_TRANSFER_STATE_DIRECTION_SAVE 0
+#define VHOST_USER_TRANSFER_STATE_DIRECTION_LOAD 1
+	uint32_t phase;
+#define VHOST_USER_TRANSFER_STATE_PHASE_STOPPED 0
+};
+
+/**
  * union vhost_user_payload - vhost-user message payload
- * @u64:		64-bit payload
- * @state:		vring state payload
- * @addr:		vring addresses payload
- * vhost_user_memory:	Memory regions information payload
+ * @u64:				64-bit payload
+ * @state:				vring state payload
+ * @addr:				vring addresses payload
+ * @vhost_user_memory:			Memory regions information payload
+ * @vhost_user_log:			Memory logging payload
+ * @vhost_user_transfer_device_state:	Device state payload
  */
 union vhost_user_payload {
 #define VHOST_USER_VRING_IDX_MASK   0xff
@@ -142,6 +178,8 @@ union vhost_user_payload {
 	struct vhost_vring_state state;
 	struct vhost_vring_addr addr;
 	struct vhost_user_memory memory;
+	struct vhost_user_log log;
+	struct vhost_user_transfer_device_state transfer_state;
 };
 
 /**

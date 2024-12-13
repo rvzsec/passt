@@ -110,6 +110,11 @@ static const char *vu_request_to_string(unsigned int req)
 			REQ(VHOST_USER_GET_MAX_MEM_SLOTS),
 			REQ(VHOST_USER_ADD_MEM_REG),
 			REQ(VHOST_USER_REM_MEM_REG),
+			REQ(VHOST_USER_SET_STATUS),
+			REQ(VHOST_USER_GET_STATUS),
+			REQ(VHOST_USER_GET_SHARED_OBJECT),
+			REQ(VHOST_USER_SET_DEVICE_STATE_FD),
+			REQ(VHOST_USER_CHECK_DEVICE_STATE),
 		};
 #undef REQ
 		return vu_request_str[req];
