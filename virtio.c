@@ -81,6 +81,7 @@
 
 #include "util.h"
 #include "virtio.h"
+#include "vhost_user.h"
 
 #define VIRTQUEUE_MAX_SIZE 1024
 
@@ -592,7 +593,72 @@ static inline void vring_used_write(const struct vu_dev *vdev,
 	struct vring_used *used = vq->vring.used;
 
 	used->ring[i] = *uelem;
-	(void)vdev;
+	vu_log_write(vdev, vq->vring.log_guest_addr +
+		     offsetof(struct vring_used, ring[i]),
+		     sizeof(used->ring[i]));
+}
+
+/**
+ * vu_log_queue_fill() -- Log virtqueue memory update
+ * @dev:	Vhost-user device
+ * @vq:		Virtqueue
+ * @index:	Descriptor ring index
+ * @len:	Size of the element
+ */
+static void vu_log_queue_fill(const struct vu_dev *vdev, struct vu_virtq *vq,
+			      unsigned int index, unsigned int len)
+{
+	struct vring_desc desc_buf[VIRTQUEUE_MAX_SIZE];
+	struct vring_desc *desc = vq->vring.desc;
+	unsigned int max, min;
+	unsigned num_bufs = 0;
+	uint64_t read_len;
+
+	if (!vdev->log_table || !len || !vu_has_feature(vdev, VHOST_F_LOG_ALL))
+		return;
+
+	max = vq->vring.num;
+
+	if (le16toh(desc[index].flags) & VRING_DESC_F_INDIRECT) {
+		unsigned int desc_len;
+		uint64_t desc_addr;
+
+		if (le32toh(desc[index].len) % sizeof(struct vring_desc))
+			die("Invalid size for indirect buffer table");
+
+		/* loop over the indirect descriptor table */
+		desc_addr = le64toh(desc[index].addr);
+		desc_len = le32toh(desc[index].len);
+		max = desc_len / sizeof(struct vring_desc);
+		read_len = desc_len;
+		desc = vu_gpa_to_va(vdev, &read_len, desc_addr);
+		if (desc && read_len != desc_len) {
+			/* Failed to use zero copy */
+			desc = NULL;
+			if (!virtqueue_read_indirect_desc(vdev, desc_buf,
+							  desc_addr,
+							  desc_len))
+				desc = desc_buf;
+		}
+
+		if (!desc)
+			die("Invalid indirect buffer table");
+
+		index = 0;
+	}
+
+	do {
+		if (++num_bufs > max)
+			die("Looped descriptor");
+
+		if (le16toh(desc[index].flags) & VRING_DESC_F_WRITE) {
+			min = MIN(le32toh(desc[index].len), len);
+			vu_log_write(vdev, le64toh(desc[index].addr), min);
+			len -= min;
+		}
+	} while (len > 0 &&
+		 (virtqueue_read_next_desc(desc, index, max, &index) ==
+		  VIRTQUEUE_READ_DESC_MORE));
 }
 
 
@@ -613,6 +679,8 @@ void vu_queue_fill_by_index(const struct vu_dev *vdev, struct vu_virtq *vq,
 
 	if (!vq->vring.avail)
 		return;
+
+	vu_log_queue_fill(vdev, vq, index, len);
 
 	idx = (idx + vq->used_idx) % vq->vring.num;
 
@@ -646,7 +714,9 @@ static inline void vring_used_idx_set(const struct vu_dev *vdev,
 				      struct vu_virtq *vq, uint16_t val)
 {
 	vq->vring.used->idx = htole16(val);
-	(void)vdev;
+	vu_log_write(vdev, vq->vring.log_guest_addr +
+		     offsetof(struct vring_used, idx),
+		     sizeof(vq->vring.used->idx));
 
 	vq->used_idx = val;
 }

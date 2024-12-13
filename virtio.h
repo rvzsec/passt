@@ -104,6 +104,8 @@ struct vu_dev_region {
  * @features:		Vhost-user features
  * @protocol_features:	Vhost-user protocol features
  * @log_call_fd:	Eventfd to report logging update
+ * @log_size:		Size of the logging memory region
+ * @log_table:		Base of the logging memory region
  */
 struct vu_dev {
 	struct ctx *context;
@@ -113,6 +115,8 @@ struct vu_dev {
 	uint64_t features;
 	uint64_t protocol_features;
 	int log_call_fd;
+	uint64_t log_size;
+	uint8_t *log_table;
 };
 
 /**

@@ -152,6 +152,9 @@ static inline void barrier(void) { __asm__ __volatile__("" ::: "memory"); }
 #define smp_wmb()	smp_mb_release()
 #define smp_rmb()	smp_mb_acquire()
 
+#define qatomic_or(ptr, n) \
+	((void) __atomic_fetch_or(ptr, n, __ATOMIC_SEQ_CST))
+
 #define NS_FN_STACK_SIZE	(1024 * 1024) /* 1MiB */
 
 int do_clone(int (*fn)(void *), char *stack_area, size_t stack_size, int flags,

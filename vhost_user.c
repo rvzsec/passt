@@ -510,6 +510,12 @@ static bool vu_set_mem_table_exec(struct vu_dev *vdev,
  */
 static void vu_close_log(struct vu_dev *vdev)
 {
+	if (vdev->log_table) {
+		if (munmap(vdev->log_table, vdev->log_size) != 0)
+			die_perror("close log munmap() error");
+		vdev->log_table = NULL;
+	}
+
 	if (vdev->log_call_fd != -1) {
 		close(vdev->log_call_fd);
 		vdev->log_call_fd = -1;
@@ -520,7 +526,6 @@ static void vu_close_log(struct vu_dev *vdev)
  * vu_log_kick() - Inform the front-end that the log has been modified
  * @vdev:	vhost-user device
  */
-/* cppcheck-suppress unusedFunction */
 void vu_log_kick(const struct vu_dev *vdev)
 {
 	if (vdev->log_call_fd != -1) {
@@ -530,6 +535,84 @@ void vu_log_kick(const struct vu_dev *vdev)
 		if (rc == -1)
 			die_perror("vhost-user kick eventfd_write()");
 	}
+}
+
+
+/**
+ * vu_log_page() -- Update logging table
+ * @log_table:	Base address of the logging table
+ * @page:	Page number that has been updated
+ */
+/* NOLINTNEXTLINE(readability-non-const-parameter) */
+static void vu_log_page(uint8_t *log_table, uint64_t page)
+{
+	qatomic_or(&log_table[page / 8], 1 << (page % 8));
+}
+
+/**
+ * vu_log_write() -- Log memory write
+ * @dev:	Vhost-user device
+ * @address:	Memory address
+ * @length:	Memory size
+ */
+void vu_log_write(const struct vu_dev *vdev, uint64_t address, uint64_t length)
+{
+	uint64_t page;
+
+	if (!vdev->log_table || !length ||
+	    !vu_has_feature(vdev, VHOST_F_LOG_ALL))
+		return;
+
+	page = address / VHOST_LOG_PAGE;
+	while (page * VHOST_LOG_PAGE < address + length) {
+		vu_log_page(vdev->log_table, page);
+		page++;
+	}
+	vu_log_kick(vdev);
+}
+
+/**
+ * vu_set_log_base_exec() - Set the memory log base
+ * @vdev:	vhost-user device
+ * @vmsg:	vhost-user message
+ *
+ * Return: False as no reply is requested
+ *
+ * #syscalls:vu mmap munmap
+ */
+static bool vu_set_log_base_exec(struct vu_dev *vdev,
+				 struct vhost_user_msg *msg)
+{
+	uint64_t log_mmap_size, log_mmap_offset;
+	void *base;
+	int fd;
+
+	if (msg->fd_num != 1 || msg->hdr.size != sizeof(msg->payload.log))
+		die("Invalid log_base message");
+
+	fd = msg->fds[0];
+	log_mmap_offset = msg->payload.log.mmap_offset;
+	log_mmap_size = msg->payload.log.mmap_size;
+
+	debug("Log mmap_offset: %"PRId64, log_mmap_offset);
+	debug("Log mmap_size:   %"PRId64, log_mmap_size);
+
+	base = mmap(0, log_mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+		    log_mmap_offset);
+	close(fd);
+	if (base == MAP_FAILED)
+		die("log mmap error");
+
+	if (vdev->log_table)
+		munmap(vdev->log_table, vdev->log_size);
+
+	vdev->log_table = base;
+	vdev->log_size = log_mmap_size;
+
+	msg->hdr.size = sizeof(msg->payload.u64);
+	msg->fd_num = 0;
+
+	return true;
 }
 
 /**
@@ -915,6 +998,7 @@ void vu_init(struct ctx *c)
 			.notification = true,
 		};
 	}
+	c->vdev->log_table = NULL;
 	c->vdev->log_call_fd = -1;
 }
 
@@ -984,6 +1068,7 @@ static bool (*vu_handle[VHOST_USER_MAX])(struct vu_dev *vdev,
 	[VHOST_USER_GET_QUEUE_NUM]	   = vu_get_queue_num_exec,
 	[VHOST_USER_SET_OWNER]		   = vu_set_owner_exec,
 	[VHOST_USER_SET_MEM_TABLE]	   = vu_set_mem_table_exec,
+	[VHOST_USER_SET_LOG_BASE]	   = vu_set_log_base_exec,
 	[VHOST_USER_SET_LOG_FD]		   = vu_set_log_fd_exec,
 	[VHOST_USER_SET_VRING_NUM]	   = vu_set_vring_num_exec,
 	[VHOST_USER_SET_VRING_ADDR]	   = vu_set_vring_addr_exec,

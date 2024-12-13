@@ -15,6 +15,7 @@
 #include "iov.h"
 
 #define VHOST_USER_F_PROTOCOL_FEATURES 30
+#define VHOST_LOG_PAGE 4096
 
 #define VHOST_MEMORY_BASELINE_NREGIONS 8
 
@@ -241,5 +242,7 @@ void vu_print_capabilities(void);
 void vu_init(struct ctx *c);
 void vu_cleanup(struct vu_dev *vdev);
 void vu_log_kick(const struct vu_dev *vdev);
+void vu_log_write(const struct vu_dev *vdev, uint64_t address,
+		  uint64_t length);
 void vu_control_handler(struct vu_dev *vdev, int fd, uint32_t events);
 #endif /* VHOST_USER_H */
