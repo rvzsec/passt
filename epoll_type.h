@@ -40,6 +40,8 @@ enum epoll_type {
 	EPOLL_TYPE_VHOST_CMD,
 	/* vhost-user kick event socket */
 	EPOLL_TYPE_VHOST_KICK,
+	/* vhost-user migration socket */
+	EPOLL_TYPE_VHOST_MIGRATION,
 
 	EPOLL_NUM_TYPES,
 };

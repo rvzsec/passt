@@ -281,3 +281,52 @@ err:
 
 	return -1;
 }
+
+/**
+ * vu_migrate() -- Send/receive passt insternal state to/from QEMU
+ * @vdev:	vhost-user device
+ * @events:	epoll events
+ */
+void vu_migrate(struct vu_dev *vdev, uint32_t events)
+{
+	int ret;
+
+	/* TODO: collect/set passt internal state
+         *       and use vdev->device_state_fd to send/receive it
+         */
+	debug("vu_migrate fd %d events %x", vdev->device_state_fd, events);
+	if (events & EPOLLOUT) {
+		debug("Saving backend state");
+
+		/* send some stuff */
+		ret = write(vdev->device_state_fd, "PASST", 6);
+		/* value to be returned by VHOST_USER_CHECK_DEVICE_STATE */
+		vdev->device_state_result = ret == -1 ? -1 : 0;
+		/* Closing the file descriptor signals the end of transfer */
+		epoll_ctl(vdev->context->epollfd, EPOLL_CTL_DEL,
+			  vdev->device_state_fd, NULL);
+		close(vdev->device_state_fd);
+		vdev->device_state_fd = -1;
+	} else if (events & EPOLLIN) {
+		char buf[6];
+
+		debug("Loading backend state");
+		/* read some stuff */
+		ret = read(vdev->device_state_fd, buf, sizeof(buf));
+		/* value to be returned by VHOST_USER_CHECK_DEVICE_STATE */
+		if (ret != sizeof(buf)) {
+			vdev->device_state_result = -1;
+		} else {
+			ret = strncmp(buf, "PASST", sizeof(buf));
+			vdev->device_state_result = ret == 0 ? 0 : -1;
+		}
+	} else if (events & EPOLLHUP) {
+		debug("Closing migration channel");
+
+		/* The end of file signals the end of the transfer. */
+		epoll_ctl(vdev->context->epollfd, EPOLL_CTL_DEL,
+			  vdev->device_state_fd, NULL);
+		close(vdev->device_state_fd);
+		vdev->device_state_fd = -1;
+	}
+}

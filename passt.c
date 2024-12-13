@@ -75,6 +75,7 @@ char *epoll_type_str[] = {
 	[EPOLL_TYPE_TAP_LISTEN]		= "listening qemu socket",
 	[EPOLL_TYPE_VHOST_CMD]		= "vhost-user command socket",
 	[EPOLL_TYPE_VHOST_KICK]		= "vhost-user kick socket",
+	[EPOLL_TYPE_VHOST_MIGRATION]	= "vhost-user migration socket",
 };
 static_assert(ARRAY_SIZE(epoll_type_str) == EPOLL_NUM_TYPES,
 	      "epoll_type_str[] doesn't match enum epoll_type");
@@ -355,6 +356,9 @@ loop:
 			break;
 		case EPOLL_TYPE_VHOST_KICK:
 			vu_kick_cb(c.vdev, ref, &now);
+			break;
+		case EPOLL_TYPE_VHOST_MIGRATION:
+			vu_migrate(c.vdev, eventmask);
 			break;
 		default:
 			/* Can't happen */

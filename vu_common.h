@@ -57,4 +57,5 @@ void vu_flush(const struct vu_dev *vdev, struct vu_virtq *vq,
 void vu_kick_cb(struct vu_dev *vdev, union epoll_ref ref,
 		const struct timespec *now);
 int vu_send_single(const struct ctx *c, const void *buf, size_t size);
+void vu_migrate(struct vu_dev *vdev, uint32_t events);
 #endif /* VU_COMMON_H */

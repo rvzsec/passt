@@ -982,6 +982,78 @@ static bool vu_set_vring_enable_exec(struct vu_dev *vdev,
 }
 
 /**
+ * vu_set_migration_watch() -- Add the migration file descriptor to
+ *			       to the passt epoll file descriptor
+ * @vdev:	vhost-user device
+ * @fd:		File descriptor to add
+ * @direction:	Direction of the migration (save or load backend state)
+ */
+static void vu_set_migration_watch(const struct vu_dev *vdev, int fd,
+				   int direction)
+{
+	union epoll_ref ref = {
+		.type = EPOLL_TYPE_VHOST_MIGRATION,
+		.fd = fd,
+	 };
+	struct epoll_event ev = { 0 };
+
+	ev.data.u64 = ref.u64;
+	switch (direction) {
+	case VHOST_USER_TRANSFER_STATE_DIRECTION_SAVE:
+		ev.events = EPOLLOUT;
+		break;
+	case VHOST_USER_TRANSFER_STATE_DIRECTION_LOAD:
+		ev.events = EPOLLIN;
+		break;
+	default:
+		ASSERT(0);
+	}
+
+	epoll_ctl(vdev->context->epollfd, EPOLL_CTL_ADD, ref.fd, &ev);
+}
+
+/**
+ * vu_set_device_state_fd_exec() -- Set the device state migration channel
+ * @vdev:	vhost-user device
+ * @vmsg:	vhost-user message
+ *
+ * Return: True as the reply contains 0 to indicate success
+ *         and set bit 8 as we don't provide our own fd.
+ */
+static bool vu_set_device_state_fd_exec(struct vu_dev *vdev,
+					struct vhost_user_msg *msg)
+{
+	unsigned int direction = msg->payload.transfer_state.direction;
+	unsigned int phase = msg->payload.transfer_state.phase;
+
+	if (msg->fd_num != 1)
+		die("Invalid device_state_fd message");
+
+	if (phase != VHOST_USER_TRANSFER_STATE_PHASE_STOPPED)
+		die("Invalid device_state_fd phase: %d", phase);
+
+	if (direction != VHOST_USER_TRANSFER_STATE_DIRECTION_SAVE &&
+	    direction != VHOST_USER_TRANSFER_STATE_DIRECTION_LOAD)
+		die("Invalide device_state_fd direction: %d", direction);
+
+	if (vdev->device_state_fd != -1) {
+		vu_remove_watch(vdev, vdev->device_state_fd);
+		close(vdev->device_state_fd);
+	}
+
+	vdev->device_state_fd = msg->fds[0];
+	vdev->device_state_result = -1;
+	vu_set_migration_watch(vdev, vdev->device_state_fd, direction);
+
+	debug("Got device_state_fd: %d", vdev->device_state_fd);
+
+	/* We don't provide a new fd for the data transfer */
+	vmsg_set_reply_u64(msg, VHOST_USER_VRING_NOFD_MASK);
+
+	return true;
+}
+
+/**
  * vu_check_device_state_exec() -- Return device state migration result
  * @vdev:	vhost-user device
  * @vmsg:	vhost-user message
@@ -1019,6 +1091,7 @@ void vu_init(struct ctx *c)
 	}
 	c->vdev->log_table = NULL;
 	c->vdev->log_call_fd = -1;
+	c->vdev->device_state_fd = -1;
 	c->vdev->device_state_result = -1;
 }
 
@@ -1069,7 +1142,12 @@ void vu_cleanup(struct vu_dev *vdev)
 
 	vu_close_log(vdev);
 
-	vdev->device_state_result = -1;
+	if (vdev->device_state_fd != -1) {
+		vu_remove_watch(vdev, vdev->device_state_fd);
+		close(vdev->device_state_fd);
+		vdev->device_state_fd = -1;
+		vdev->device_state_result = -1;
+	}
 }
 
 /**
@@ -1100,6 +1178,7 @@ static bool (*vu_handle[VHOST_USER_MAX])(struct vu_dev *vdev,
 	[VHOST_USER_SET_VRING_CALL]	   = vu_set_vring_call_exec,
 	[VHOST_USER_SET_VRING_ERR]	   = vu_set_vring_err_exec,
 	[VHOST_USER_SET_VRING_ENABLE]	   = vu_set_vring_enable_exec,
+	[VHOST_USER_SET_DEVICE_STATE_FD]   = vu_set_device_state_fd_exec,
 	[VHOST_USER_CHECK_DEVICE_STATE]    = vu_check_device_state_exec,
 };
 
