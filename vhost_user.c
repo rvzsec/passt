@@ -982,6 +982,23 @@ static bool vu_set_vring_enable_exec(struct vu_dev *vdev,
 }
 
 /**
+ * vu_check_device_state_exec() -- Return device state migration result
+ * @vdev:	vhost-user device
+ * @vmsg:	vhost-user message
+ *
+ * Return: True as the reply contains the migration result
+ */
+static bool vu_check_device_state_exec(struct vu_dev *vdev,
+				       struct vhost_user_msg *msg)
+{
+	(void)vdev;
+
+	vmsg_set_reply_u64(msg, vdev->device_state_result);
+
+	return true;
+}
+
+/**
  * vu_init() - Initialize vhost-user device structure
  * @c:		execution context
  * @vdev:	vhost-user device
@@ -1002,6 +1019,7 @@ void vu_init(struct ctx *c)
 	}
 	c->vdev->log_table = NULL;
 	c->vdev->log_call_fd = -1;
+	c->vdev->device_state_result = -1;
 }
 
 
@@ -1050,6 +1068,8 @@ void vu_cleanup(struct vu_dev *vdev)
 	vdev->nregions = 0;
 
 	vu_close_log(vdev);
+
+	vdev->device_state_result = -1;
 }
 
 /**
@@ -1080,6 +1100,7 @@ static bool (*vu_handle[VHOST_USER_MAX])(struct vu_dev *vdev,
 	[VHOST_USER_SET_VRING_CALL]	   = vu_set_vring_call_exec,
 	[VHOST_USER_SET_VRING_ERR]	   = vu_set_vring_err_exec,
 	[VHOST_USER_SET_VRING_ENABLE]	   = vu_set_vring_enable_exec,
+	[VHOST_USER_CHECK_DEVICE_STATE]    = vu_check_device_state_exec,
 };
 
 /**
