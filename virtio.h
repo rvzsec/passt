@@ -103,6 +103,7 @@ struct vu_dev_region {
  * @regions:		Guest shared memory regions
  * @features:		Vhost-user features
  * @protocol_features:	Vhost-user protocol features
+ * @log_call_fd:	Eventfd to report logging update
  */
 struct vu_dev {
 	struct ctx *context;
@@ -111,6 +112,7 @@ struct vu_dev {
 	struct vu_virtq vq[VHOST_USER_MAX_QUEUES];
 	uint64_t features;
 	uint64_t protocol_features;
+	int log_call_fd;
 };
 
 /**

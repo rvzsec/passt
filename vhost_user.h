@@ -240,5 +240,6 @@ static inline bool vu_queue_started(const struct vu_virtq *vq)
 void vu_print_capabilities(void);
 void vu_init(struct ctx *c);
 void vu_cleanup(struct vu_dev *vdev);
+void vu_log_kick(const struct vu_dev *vdev);
 void vu_control_handler(struct vu_dev *vdev, int fd, uint32_t events);
 #endif /* VHOST_USER_H */

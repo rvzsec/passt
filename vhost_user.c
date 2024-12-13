@@ -505,6 +505,57 @@ static bool vu_set_mem_table_exec(struct vu_dev *vdev,
 }
 
 /**
+ * vu_close_log() - Close the logging file descriptor
+ * @vdev:	vhost-user device
+ */
+static void vu_close_log(struct vu_dev *vdev)
+{
+	if (vdev->log_call_fd != -1) {
+		close(vdev->log_call_fd);
+		vdev->log_call_fd = -1;
+	}
+}
+
+/**
+ * vu_log_kick() - Inform the front-end that the log has been modified
+ * @vdev:	vhost-user device
+ */
+/* cppcheck-suppress unusedFunction */
+void vu_log_kick(const struct vu_dev *vdev)
+{
+	if (vdev->log_call_fd != -1) {
+		int rc;
+
+		rc = eventfd_write(vdev->log_call_fd, 1);
+		if (rc == -1)
+			die_perror("vhost-user kick eventfd_write()");
+	}
+}
+
+/**
+ * vu_set_log_fd_exec() -- Set the eventfd used to report logging update
+ * @vdev:	vhost-user device
+ * @vmsg:	vhost-user message
+ *
+ * Return: False as no reply is requested
+ */
+static bool vu_set_log_fd_exec(struct vu_dev *vdev,
+			       struct vhost_user_msg *msg)
+{
+	if (msg->fd_num != 1)
+		die("Invalid log_fd message");
+
+	if (vdev->log_call_fd != -1)
+		close(vdev->log_call_fd);
+
+	vdev->log_call_fd = msg->fds[0];
+
+	debug("Got log_call_fd: %d", vdev->log_call_fd);
+
+	return false;
+}
+
+/**
  * vu_set_vring_num_exec() - Set the size of the queue (vring size)
  * @vdev:	vhost-user device
  * @vmsg:	vhost-user message
@@ -864,7 +915,9 @@ void vu_init(struct ctx *c)
 			.notification = true,
 		};
 	}
+	c->vdev->log_call_fd = -1;
 }
+
 
 /**
  * vu_cleanup() - Reset vhost-user device
@@ -909,6 +962,8 @@ void vu_cleanup(struct vu_dev *vdev)
 		}
 	}
 	vdev->nregions = 0;
+
+	vu_close_log(vdev);
 }
 
 /**
@@ -929,6 +984,7 @@ static bool (*vu_handle[VHOST_USER_MAX])(struct vu_dev *vdev,
 	[VHOST_USER_GET_QUEUE_NUM]	   = vu_get_queue_num_exec,
 	[VHOST_USER_SET_OWNER]		   = vu_set_owner_exec,
 	[VHOST_USER_SET_MEM_TABLE]	   = vu_set_mem_table_exec,
+	[VHOST_USER_SET_LOG_FD]		   = vu_set_log_fd_exec,
 	[VHOST_USER_SET_VRING_NUM]	   = vu_set_vring_num_exec,
 	[VHOST_USER_SET_VRING_ADDR]	   = vu_set_vring_addr_exec,
 	[VHOST_USER_SET_VRING_BASE]	   = vu_set_vring_base_exec,
