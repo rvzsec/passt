@@ -334,6 +334,7 @@ static bool vu_get_features_exec(struct vu_dev *vdev,
 	uint64_t features =
 		1ULL << VIRTIO_F_VERSION_1 |
 		1ULL << VIRTIO_NET_F_MRG_RXBUF |
+		1ULL << VHOST_F_LOG_ALL |
 		1ULL << VHOST_USER_F_PROTOCOL_FEATURES;
 
 	(void)vdev;
@@ -912,7 +913,8 @@ static bool vu_set_vring_err_exec(struct vu_dev *vdev,
 static bool vu_get_protocol_features_exec(struct vu_dev *vdev,
 					  struct vhost_user_msg *msg)
 {
-	uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK;
+	uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK |
+			    1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD;
 
 	(void)vdev;
 	vmsg_set_reply_u64(msg, features);
