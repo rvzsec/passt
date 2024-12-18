@@ -914,7 +914,8 @@ static bool vu_get_protocol_features_exec(struct vu_dev *vdev,
 					  struct vhost_user_msg *msg)
 {
 	uint64_t features = 1ULL << VHOST_USER_PROTOCOL_F_REPLY_ACK |
-			    1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD;
+			    1ULL << VHOST_USER_PROTOCOL_F_LOG_SHMFD |
+			    1ULL << VHOST_USER_PROTOCOL_F_DEVICE_STATE;
 
 	(void)vdev;
 	vmsg_set_reply_u64(msg, features);
