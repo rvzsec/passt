@@ -164,7 +164,7 @@ static int tcp_splice_epoll_ctl(const struct ctx *c,
 	if (epoll_ctl(c->epollfd, m, conn->s[0], &ev[0]) ||
 	    epoll_ctl(c->epollfd, m, conn->s[1], &ev[1])) {
 		int ret = -errno;
-		flow_err(conn, "ERROR on epoll_ctl(): %s", strerror_(errno));
+		flow_perror(conn, "ERROR on epoll_ctl()");
 		return ret;
 	}
 
@@ -317,8 +317,8 @@ static int tcp_splice_connect_finish(const struct ctx *c,
 
 		if (conn->pipe[sidei][0] < 0) {
 			if (pipe2(conn->pipe[sidei], O_NONBLOCK | O_CLOEXEC)) {
-				flow_err(conn, "cannot create %d->%d pipe: %s",
-					 sidei, !sidei, strerror_(errno));
+				flow_perror(conn, "cannot create %d->%d pipe",
+					    sidei, !sidei);
 				conn_flag(c, conn, CLOSING);
 				return -EIO;
 			}
@@ -482,8 +482,7 @@ void tcp_splice_sock_handler(struct ctx *c, union epoll_ref ref,
 
 		rc = getsockopt(ref.fd, SOL_SOCKET, SO_ERROR, &err, &sl);
 		if (rc)
-			flow_err(conn, "Error retrieving SO_ERROR: %s",
-				 strerror_(errno));
+			flow_perror(conn, "Error retrieving SO_ERROR");
 		else
 			flow_trace(conn, "Error event on socket: %s",
 				   strerror_(err));

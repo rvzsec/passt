@@ -258,11 +258,11 @@ int flow_migrate_source(struct ctx *c, const struct migrate_stage *stage,
 int flow_migrate_target(struct ctx *c, const struct migrate_stage *stage,
 			int fd);
 
-void flow_log_(const struct flow_common *f, int pri, const char *fmt, ...)
-	__attribute__((format(printf, 3, 4)));
+void flow_log_(const struct flow_common *f, bool newline, int pri,
+	       const char *fmt, ...)
+	__attribute__((format(printf, 4, 5)));
 
-#define flow_log(f_, pri, ...)	flow_log_(&(f_)->f, (pri), __VA_ARGS__)
-
+#define flow_log(f_, pri, ...)	flow_log_(&(f_)->f, true, (pri), __VA_ARGS__)
 #define flow_dbg(f, ...)	flow_log((f), LOG_DEBUG, __VA_ARGS__)
 #define flow_err(f, ...)	flow_log((f), LOG_ERR, __VA_ARGS__)
 
@@ -271,6 +271,16 @@ void flow_log_(const struct flow_common *f, int pri, const char *fmt, ...)
 		if (log_trace)						\
 			flow_dbg((f), __VA_ARGS__);			\
 	} while (0)
+
+#define flow_log_perror_(f, pri, ...)					\
+	do {								\
+		int errno_ = errno;					\
+		flow_log_((f), false, (pri), __VA_ARGS__);		\
+		logmsg(true, true, (pri), ": %s", strerror_(errno_));	\
+	} while (0)
+
+#define flow_dbg_perror(f_, ...) flow_log_perror_(&(f_)->f, LOG_DEBUG, __VA_ARGS__)
+#define flow_perror(f_, ...)	flow_log_perror_(&(f_)->f, LOG_ERR, __VA_ARGS__)
 
 void flow_log_details_(const struct flow_common *f, int pri,
 		       enum flow_state state);

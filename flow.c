@@ -289,11 +289,13 @@ int flowside_connect(const struct ctx *c, int s,
 
 /** flow_log_ - Log flow-related message
  * @f:		flow the message is related to
+ * @newline:	Append newline at the end of the message, if missing
  * @pri:	Log priority
  * @fmt:	Format string
  * @...:	printf-arguments
  */
-void flow_log_(const struct flow_common *f, int pri, const char *fmt, ...)
+void flow_log_(const struct flow_common *f, bool newline, int pri,
+	       const char *fmt, ...)
 {
 	const char *type_or_state;
 	char msg[BUFSIZ];
@@ -309,7 +311,7 @@ void flow_log_(const struct flow_common *f, int pri, const char *fmt, ...)
 	else
 		type_or_state = FLOW_TYPE(f);
 
-	logmsg(true, false, pri,
+	logmsg(newline, false, pri,
 	       "Flow %u (%s): %s", flow_idx(f), type_or_state, msg);
 }
 
@@ -329,7 +331,7 @@ void flow_log_details_(const struct flow_common *f, int pri,
 	const struct flowside *tgt = &f->side[TGTSIDE];
 
 	if (state >= FLOW_STATE_TGT)
-		flow_log_(f, pri,
+		flow_log_(f, true, pri,
 			  "%s [%s]:%hu -> [%s]:%hu => %s [%s]:%hu -> [%s]:%hu",
 			  pif_name(f->pif[INISIDE]),
 			  inany_ntop(&ini->eaddr, estr0, sizeof(estr0)),
@@ -342,7 +344,7 @@ void flow_log_details_(const struct flow_common *f, int pri,
 			  inany_ntop(&tgt->eaddr, estr1, sizeof(estr1)),
 			  tgt->eport);
 	else if (state >= FLOW_STATE_INI)
-		flow_log_(f, pri, "%s [%s]:%hu -> [%s]:%hu => ?",
+		flow_log_(f, true, pri, "%s [%s]:%hu -> [%s]:%hu => ?",
 			  pif_name(f->pif[INISIDE]),
 			  inany_ntop(&ini->eaddr, estr0, sizeof(estr0)),
 			  ini->eport,
@@ -363,7 +365,7 @@ static void flow_set_state(struct flow_common *f, enum flow_state state)
 	ASSERT(oldstate < FLOW_NUM_STATES);
 
 	f->state = state;
-	flow_log_(f, LOG_DEBUG, "%s -> %s", flow_state_str[oldstate],
+	flow_log_(f, true, LOG_DEBUG, "%s -> %s", flow_state_str[oldstate],
 		  FLOW_STATE(f));
 
 	flow_log_details_(f, LOG_DEBUG, MAX(state, oldstate));

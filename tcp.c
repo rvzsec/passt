@@ -551,8 +551,7 @@ static void tcp_timer_ctl(const struct ctx *c, struct tcp_tap_conn *conn)
 
 		fd = timerfd_create(CLOCK_MONOTONIC, 0);
 		if (fd == -1 || fd > FD_REF_MAX) {
-			flow_dbg(conn, "failed to get timer: %s",
-				 strerror_(errno));
+			flow_dbg_perror(conn, "failed to get timer");
 			if (fd > -1)
 				close(fd);
 			conn->timer = -1;
@@ -561,8 +560,7 @@ static void tcp_timer_ctl(const struct ctx *c, struct tcp_tap_conn *conn)
 		conn->timer = fd;
 
 		if (epoll_ctl(c->epollfd, EPOLL_CTL_ADD, conn->timer, &ev)) {
-			flow_dbg(conn, "failed to add timer: %s",
-				 strerror_(errno));
+			flow_dbg_perror(conn, "failed to add timer");
 			close(conn->timer);
 			conn->timer = -1;
 			return;
@@ -587,7 +585,7 @@ static void tcp_timer_ctl(const struct ctx *c, struct tcp_tap_conn *conn)
 		 (unsigned long long)it.it_value.tv_nsec / 1000 / 1000);
 
 	if (timerfd_settime(conn->timer, 0, &it, NULL))
-		flow_err(conn, "failed to set timer: %s", strerror_(errno));
+		flow_perror(conn, "failed to set timer");
 }
 
 /**
@@ -1384,10 +1382,10 @@ static void tcp_bind_outbound(const struct ctx *c,
 		if (bind(s, &bind_sa.sa, sl)) {
 			char sstr[INANY_ADDRSTRLEN];
 
-			flow_dbg(conn,
-				 "Can't bind TCP outbound socket to %s:%hu: %s",
-				 inany_ntop(&tgt->oaddr, sstr, sizeof(sstr)),
-				 tgt->oport, strerror_(errno));
+			flow_dbg_perror(conn,
+					"Can't bind TCP outbound socket to %s:%hu",
+					inany_ntop(&tgt->oaddr, sstr, sizeof(sstr)),
+					tgt->oport);
 		}
 	}
 
@@ -1396,9 +1394,9 @@ static void tcp_bind_outbound(const struct ctx *c,
 			if (setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
 				       c->ip4.ifname_out,
 				       strlen(c->ip4.ifname_out))) {
-				flow_dbg(conn, "Can't bind IPv4 TCP socket to"
-					 " interface %s: %s", c->ip4.ifname_out,
-					 strerror_(errno));
+				flow_dbg_perror(conn,
+						"Can't bind IPv4 TCP socket to interface %s",
+						c->ip4.ifname_out);
 			}
 		}
 	} else if (bind_sa.sa_family == AF_INET6) {
@@ -1406,9 +1404,9 @@ static void tcp_bind_outbound(const struct ctx *c,
 			if (setsockopt(s, SOL_SOCKET, SO_BINDTODEVICE,
 				       c->ip6.ifname_out,
 				       strlen(c->ip6.ifname_out))) {
-				flow_dbg(conn, "Can't bind IPv6 TCP socket to"
-					 " interface %s: %s", c->ip6.ifname_out,
-					 strerror_(errno));
+				flow_dbg_perror(conn,
+						"Can't bind IPv6 TCP socket to interface %s",
+						c->ip6.ifname_out);
 			}
 		}
 	}
@@ -2263,7 +2261,7 @@ void tcp_timer_handler(const struct ctx *c, union epoll_ref ref)
 	 * and we just set the timer to a new point in the future: discard it.
 	 */
 	if (timerfd_gettime(conn->timer, &check_armed))
-		flow_err(conn, "failed to read timer: %s", strerror_(errno));
+		flow_perror(conn, "failed to read timer");
 
 	if (check_armed.it_value.tv_sec || check_armed.it_value.tv_nsec)
 		return;
@@ -2305,8 +2303,7 @@ void tcp_timer_handler(const struct ctx *c, union epoll_ref ref)
 		 * ~ACK_TO_TAP_DUE or ~ACK_FROM_TAP_DUE.
 		 */
 		if (timerfd_settime(conn->timer, 0, &new, &old))
-			flow_err(conn, "failed to set timer: %s",
-				 strerror_(errno));
+			flow_perror(conn, "failed to set timer");
 
 		if (old.it_value.tv_sec == ACT_TIMEOUT) {
 			flow_dbg(conn, "activity timeout");

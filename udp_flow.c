@@ -93,9 +93,8 @@ static flow_sidx_t udp_flow_new(const struct ctx *c, union flow *flow,
 		 */
 		uflow->s[INISIDE] = fcntl(s_ini, F_DUPFD_CLOEXEC, 0);
 		if (uflow->s[INISIDE] < 0) {
-			flow_err(uflow,
-				 "Couldn't duplicate listening socket: %s",
-				 strerror_(errno));
+			flow_perror(uflow,
+				    "Couldn't duplicate listening socket");
 			goto cancel;
 		}
 	}
@@ -113,16 +112,13 @@ static flow_sidx_t udp_flow_new(const struct ctx *c, union flow *flow,
 		uflow->s[TGTSIDE] = flowside_sock_l4(c, EPOLL_TYPE_UDP_REPLY,
 						     tgtpif, tgt, fref.data);
 		if (uflow->s[TGTSIDE] < 0) {
-			flow_dbg(uflow,
-				 "Couldn't open socket for spliced flow: %s",
-				 strerror_(errno));
+			flow_dbg_perror(uflow,
+					"Couldn't open socket for spliced flow");
 			goto cancel;
 		}
 
 		if (flowside_connect(c, uflow->s[TGTSIDE], tgtpif, tgt) < 0) {
-			flow_dbg(uflow,
-				 "Couldn't connect flow socket: %s",
-				 strerror_(errno));
+			flow_dbg_perror(uflow, "Couldn't connect flow socket");
 			goto cancel;
 		}
 
@@ -142,9 +138,8 @@ static flow_sidx_t udp_flow_new(const struct ctx *c, union flow *flow,
 			flow_trace(uflow,
 				   "Discarded %d spurious reply datagrams", rc);
 		} else if (errno != EAGAIN) {
-			flow_err(uflow,
-				 "Unexpected error discarding datagrams: %s",
-				 strerror_(errno));
+			flow_perror(uflow,
+				    "Unexpected error discarding datagrams");
 		}
 	}
 

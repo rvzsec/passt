@@ -85,7 +85,7 @@ void icmp_sock_handler(const struct ctx *c, union epoll_ref ref)
 
 	n = recvfrom(ref.fd, buf, sizeof(buf), 0, &sr.sa, &sl);
 	if (n < 0) {
-		flow_err(pingf, "recvfrom() error: %s", strerror_(errno));
+		flow_perror(pingf, "recvfrom() error");
 		return;
 	}
 
@@ -300,8 +300,7 @@ int icmp_tap_handler(const struct ctx *c, uint8_t pif, sa_family_t af,
 
 	pif_sockaddr(c, &sa, &sl, PIF_HOST, &tgt->eaddr, 0);
 	if (sendto(pingf->sock, pkt, l4len, MSG_NOSIGNAL, &sa.sa, sl) < 0) {
-		flow_dbg(pingf, "failed to relay request to socket: %s",
-			 strerror_(errno));
+		flow_dbg_perror(pingf, "failed to relay request to socket");
 	} else {
 		flow_dbg(pingf,
 			 "echo request to socket, ID: %"PRIu16", seq: %"PRIu16,
