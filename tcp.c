@@ -2711,6 +2711,9 @@ int tcp_flow_repair_on(struct ctx *c, const struct tcp_tap_conn *conn)
 {
 	int rc = 0;
 
+	if (conn->sock < 0)
+		return 0;
+
 	if ((rc = repair_set(c, conn->sock, TCP_REPAIR_ON)))
 		err("Failed to set TCP_REPAIR");
 
@@ -2727,6 +2730,9 @@ int tcp_flow_repair_on(struct ctx *c, const struct tcp_tap_conn *conn)
 int tcp_flow_repair_off(struct ctx *c, const struct tcp_tap_conn *conn)
 {
 	int rc = 0;
+
+	if (conn->sock < 0)
+		return 0;
 
 	if ((rc = repair_set(c, conn->sock, TCP_REPAIR_OFF)))
 		err("Failed to clear TCP_REPAIR");
@@ -3382,7 +3388,8 @@ int tcp_flow_migrate_target(struct ctx *c, int fd)
 
 	if ((rc = tcp_flow_repair_socket(c, conn))) {
 		flow_err(flow, "Can't set up socket: %s, drop", strerror_(-rc));
-		flow_alloc_cancel(flow);
+		/* Can't leave the flow in an incomplete state */
+		FLOW_ACTIVATE(conn);
 		return 0;
 	}
 
@@ -3458,6 +3465,10 @@ int tcp_flow_migrate_target_ext(struct ctx *c, union flow *flow, int fd)
 		err_perror("Failed to read receive queue data, socket %i", s);
 		return rc;
 	}
+
+	if (conn->sock < 0)
+		/* We weren't able to create the socket, discard flow */
+		goto fail;
 
 	if (tcp_flow_select_queue(s, TCP_SEND_QUEUE))
 		goto fail;
@@ -3546,8 +3557,10 @@ int tcp_flow_migrate_target_ext(struct ctx *c, union flow *flow, int fd)
 	return 0;
 
 fail:
-	tcp_flow_repair_off(c, conn);
-	repair_flush(c);
+	if (conn->sock >= 0) {
+		tcp_flow_repair_off(c, conn);
+		repair_flush(c);
+	}
 
 	conn->flags = 0; /* Not waiting for ACK, don't schedule timer */
 	tcp_rst(c, conn);
