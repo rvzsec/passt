@@ -3285,7 +3285,8 @@ int tcp_flow_repair_socket(struct ctx *c, struct tcp_tap_conn *conn)
 
 	tcp_sock_set_nodelay(s);
 
-	if ((rc = bind(s, &a.sa, sizeof(a)))) {
+	if (bind(s, &a.sa, sizeof(a))) {
+		rc = -errno;
 		err_perror("Failed to bind socket for migrated flow");
 		goto err;
 	}
@@ -3380,7 +3381,7 @@ int tcp_flow_migrate_target(struct ctx *c, int fd)
 	conn->seq_init_from_tap		= ntohl(t.seq_init_from_tap);
 
 	if ((rc = tcp_flow_repair_socket(c, conn))) {
-		flow_err(flow, "Can't set up socket: %s, drop", strerror_(rc));
+		flow_err(flow, "Can't set up socket: %s, drop", strerror_(-rc));
 		flow_alloc_cancel(flow);
 		return 0;
 	}
