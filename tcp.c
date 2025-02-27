@@ -1216,8 +1216,8 @@ void tcp_rst_do(const struct ctx *c, struct tcp_tap_conn *conn)
 	if (conn->events == CLOSED)
 		return;
 
-	if (!tcp_send_flag(c, conn, RST))
-		conn_event(c, conn, CLOSED);
+	tcp_send_flag(c, conn, RST);
+	conn_event(c, conn, CLOSED);
 }
 
 /**
