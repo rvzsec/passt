@@ -29,6 +29,9 @@ require {
 	# particularly complicated. To avoid breakage in the short term,
 	# deal with it in passt's own policy.
 	type svirt_image_t;
+	type svirt_tmpfs_t;
+	type svirt_t;
+	type null_device_t;
 
 	class file { ioctl getattr setattr create read write unlink open relabelto execute execute_no_trans map };
 	class dir { search write add_name remove_name mounton };
@@ -45,7 +48,7 @@ require {
 	type net_conf_t;
 	type proc_net_t;
 	type node_t;
-	class tcp_socket { create accept listen name_bind name_connect getattr };
+	class tcp_socket { create accept listen name_bind name_connect getattr ioctl };
 	class udp_socket { create accept listen };
 	class icmp_socket { bind create name_bind node_bind setopt read write };
 	class sock_file { create unlink write };
@@ -128,7 +131,7 @@ corenet_udp_sendrecv_all_ports(passt_t)
 allow passt_t node_t:icmp_socket { name_bind node_bind };
 allow passt_t port_t:icmp_socket name_bind;
 
-allow passt_t self:tcp_socket { create getopt setopt connect bind listen accept shutdown read write getattr };
+allow passt_t self:tcp_socket { create getopt setopt connect bind listen accept shutdown read write getattr ioctl };
 allow passt_t self:udp_socket { create getopt setopt connect bind read write };
 allow passt_t self:icmp_socket { bind create setopt read write };
 
@@ -142,3 +145,5 @@ allow passt_t unconfined_t:unix_stream_socket { read write };
 # particularly complicated. To avoid breakage in the short term,
 # deal with it in passt's own policy.
 allow passt_t svirt_image_t:file { read write map };
+allow passt_t svirt_tmpfs_t:file { read write map };
+allow passt_t null_device_t:chr_file map;

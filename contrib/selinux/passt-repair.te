@@ -28,12 +28,22 @@ require {
 	type console_device_t;
 	type user_devpts_t;
 	type user_tmp_t;
+
+	# Workaround: passt-repair needs to needs to access socket files
+	# that passt, started by libvirt, might create under different
+	# labels, depending on whether passt is started as root or not.
+	#
+	# However, libvirt doesn't maintain its own policy, which makes
+	# updates particularly complicated. To avoid breakage in the short
+	# term, deal with that in passt's own policy.
+	type qemu_var_run_t;
+	type virt_var_run_t;
 }
 
 type passt_repair_t;
 domain_type(passt_repair_t);
 type passt_repair_exec_t;
-files_type(passt_repair_exec_t);
+corecmd_executable_file(passt_repair_exec_t);
 
 role unconfined_r types passt_repair_t;
 
@@ -41,7 +51,8 @@ allow passt_repair_t passt_repair_exec_t:file { read execute execute_no_trans en
 type_transition unconfined_t passt_repair_exec_t:process passt_repair_t;
 allow unconfined_t passt_repair_t:process transition;
 
-allow passt_repair_t self:capability { dac_override net_admin net_raw };
+allow passt_repair_t self:capability { dac_override dac_read_search net_admin net_raw };
+allow passt_repair_t self:capability2 bpf;
 
 allow passt_repair_t console_device_t:chr_file { append open getattr read write ioctl };
 allow passt_repair_t user_devpts_t:chr_file { append open getattr read write ioctl };
@@ -50,9 +61,27 @@ allow passt_repair_t unconfined_t:unix_stream_socket { connectto read write };
 allow passt_repair_t passt_t:unix_stream_socket { connectto read write };
 allow passt_repair_t user_tmp_t:unix_stream_socket { connectto read write };
 
+allow passt_repair_t user_tmp_t:dir search;
+
 allow passt_repair_t unconfined_t:sock_file { read write };
 allow passt_repair_t passt_t:sock_file { read write };
 allow passt_repair_t user_tmp_t:sock_file { read write };
 
 allow passt_repair_t unconfined_t:tcp_socket { read setopt write };
 allow passt_repair_t passt_t:tcp_socket { read setopt write };
+
+# Workaround: passt-repair needs to needs to access socket files
+# that passt, started by libvirt, might create under different
+# labels, depending on whether passt is started as root or not.
+#
+# However, libvirt doesn't maintain its own policy, which makes
+# updates particularly complicated. To avoid breakage in the short
+# term, deal with that in passt's own policy.
+allow passt_repair_t qemu_var_run_t:unix_stream_socket { connectto read write };
+allow passt_repair_t virt_var_run_t:unix_stream_socket { connectto read write };
+
+allow passt_repair_t qemu_var_run_t:dir search;
+allow passt_repair_t virt_var_run_t:dir search;
+
+allow passt_repair_t qemu_var_run_t:sock_file { read write };
+allow passt_repair_t virt_var_run_t:sock_file { read write };
