@@ -107,7 +107,6 @@ static inline void ip6_set_flow_lbl(struct ipv6hdr *ip6h, uint32_t flow)
  *
  * Return: flow label from @ip6h as an integer (<= 20 bits)
  */
-/* cppcheck-suppress unusedFunction */
 static inline uint32_t ip6_get_flow_lbl(const struct ipv6hdr *ip6h)
 {
 	return (ip6h->flow_lbl[0] & 0xf) << 16 |

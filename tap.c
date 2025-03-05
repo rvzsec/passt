@@ -489,6 +489,7 @@ static struct tap4_l4_t {
  * struct l4_seq6_t - Message sequence for one protocol handler call, IPv6
  * @msgs:	Count of messages in sequence
  * @protocol:	Protocol number
+ * @flow_lbl:	IPv6 flow label
  * @source:	Source port
  * @dest:	Destination port
  * @saddr:	Source address
@@ -497,6 +498,7 @@ static struct tap4_l4_t {
  */
 static struct tap6_l4_t {
 	uint8_t protocol;
+	uint32_t flow_lbl :20;
 
 	uint16_t source;
 	uint16_t dest;
@@ -870,6 +872,7 @@ resume:
 		((seq)->protocol == (proto)                &&		\
 		 (seq)->source   == (uh)->source           &&		\
 		 (seq)->dest == (uh)->dest                 &&		\
+		 (seq)->flow_lbl == ip6_get_flow_lbl(ip6h) &&		\
 		 IN6_ARE_ADDR_EQUAL(&(seq)->saddr, saddr)  &&		\
 		 IN6_ARE_ADDR_EQUAL(&(seq)->daddr, daddr))
 
@@ -878,6 +881,7 @@ resume:
 		(seq)->protocol	= (proto);				\
 		(seq)->source	= (uh)->source;				\
 		(seq)->dest	= (uh)->dest;				\
+		(seq)->flow_lbl	= ip6_get_flow_lbl(ip6h);		\
 		(seq)->saddr	= *saddr;				\
 		(seq)->daddr	= *daddr;				\
 	} while (0)
