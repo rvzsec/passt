@@ -1869,12 +1869,82 @@ static void tcp_conn_from_sock_finish(const struct ctx *c,
 }
 
 /**
+ * tcp_rst_no_conn() - Send RST in response to a packet with no connection
+ * @c:		Execution context
+ * @af:		Address family, AF_INET or AF_INET6
+ * @saddr:	Source address of the packet we're responding to
+ * @daddr:	Destination address of the packet we're responding to
+ * @flow_lbl:	IPv6 flow label (ignored for IPv4)
+ * @th:		TCP header of the packet we're responding to
+ * @l4len:	Packet length, including TCP header
+ */
+static void tcp_rst_no_conn(const struct ctx *c, int af,
+			    const void *saddr, const void *daddr,
+			    uint32_t flow_lbl,
+			    const struct tcphdr *th, size_t l4len)
+{
+	struct iov_tail payload = IOV_TAIL(NULL, 0, 0);
+	struct tcphdr *rsth;
+	char buf[USHRT_MAX];
+	uint32_t psum = 0;
+	size_t rst_l2len;
+
+	/* Don't respond to RSTs without a connection */
+	if (th->rst)
+		return;
+
+	if (af == AF_INET) {
+		struct iphdr *ip4h = tap_push_l2h(c, buf, ETH_P_IP);
+		const struct in_addr *rst_src = daddr;
+		const struct in_addr *rst_dst = saddr;
+
+		rsth = tap_push_ip4h(ip4h, *rst_src, *rst_dst,
+				     sizeof(*rsth), IPPROTO_TCP);
+		psum = proto_ipv4_header_psum(sizeof(*rsth), IPPROTO_TCP,
+					      *rst_src, *rst_dst);
+
+	} else {
+		struct ipv6hdr *ip6h = tap_push_l2h(c, buf, ETH_P_IPV6);
+		const struct in6_addr *rst_src = daddr;
+		const struct in6_addr *rst_dst = saddr;
+
+		rsth = tap_push_ip6h(ip6h, rst_src, rst_dst,
+				     sizeof(*rsth), IPPROTO_TCP, flow_lbl);
+		psum = proto_ipv6_header_psum(sizeof(*rsth), IPPROTO_TCP,
+					      rst_src, rst_dst);
+	}
+
+	memset(rsth, 0, sizeof(*rsth));
+
+	rsth->source = th->dest;
+	rsth->dest = th->source;
+	rsth->rst = 1;
+	rsth->doff = sizeof(*rsth) / 4UL;
+
+	/* Sequence matching logic from RFC 9293 section 3.10.7.1 */
+	if (th->ack) {
+		rsth->seq = th->ack_seq;
+	} else {
+		size_t dlen = l4len - th->doff * 4UL;
+		uint32_t ack = ntohl(th->seq) + dlen;
+
+		rsth->ack_seq = htonl(ack);
+		rsth->ack = 1;
+	}
+
+	tcp_update_csum(psum, rsth, &payload);
+	rst_l2len = ((char *)rsth - buf) + sizeof(*rsth);
+	tap_send_single(c, buf, rst_l2len);
+}
+
+/**
  * tcp_tap_handler() - Handle packets from tap and state transitions
  * @c:		Execution context
  * @pif:	pif on which the packet is arriving
  * @af:		Address family, AF_INET or AF_INET6
  * @saddr:	Source address
  * @daddr:	Destination address
+ * @flow_lbl:	IPv6 flow label (ignored for IPv4)
  * @p:		Pool of TCP packets, with TCP headers
  * @idx:	Index of first packet in pool to process
  * @now:	Current timestamp
@@ -1882,7 +1952,7 @@ static void tcp_conn_from_sock_finish(const struct ctx *c,
  * Return: count of consumed packets
  */
 int tcp_tap_handler(const struct ctx *c, uint8_t pif, sa_family_t af,
-		    const void *saddr, const void *daddr,
+		    const void *saddr, const void *daddr, uint32_t flow_lbl,
 		    const struct pool *p, int idx, const struct timespec *now)
 {
 	struct tcp_tap_conn *conn;
@@ -1915,6 +1985,8 @@ int tcp_tap_handler(const struct ctx *c, uint8_t pif, sa_family_t af,
 		if (opts && th->syn && !th->ack)
 			tcp_conn_from_tap(c, af, saddr, daddr, th,
 					  opts, optlen, now);
+		else
+			tcp_rst_no_conn(c, af, saddr, daddr, flow_lbl, th, len);
 		return 1;
 	}
 

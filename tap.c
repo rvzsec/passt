@@ -122,7 +122,7 @@ const struct in6_addr *tap_ip6_daddr(const struct ctx *c,
  *
  * Return: pointer at which to write the packet's payload
  */
-static void *tap_push_l2h(const struct ctx *c, void *buf, uint16_t proto)
+void *tap_push_l2h(const struct ctx *c, void *buf, uint16_t proto)
 {
 	struct ethhdr *eh = (struct ethhdr *)buf;
 
@@ -143,8 +143,8 @@ static void *tap_push_l2h(const struct ctx *c, void *buf, uint16_t proto)
  *
  * Return: pointer at which to write the packet's payload
  */
-static void *tap_push_ip4h(struct iphdr *ip4h, struct in_addr src,
-			   struct in_addr dst, size_t l4len, uint8_t proto)
+void *tap_push_ip4h(struct iphdr *ip4h, struct in_addr src,
+		    struct in_addr dst, size_t l4len, uint8_t proto)
 {
 	uint16_t l3len = l4len + sizeof(*ip4h);
 
@@ -229,10 +229,9 @@ void tap_icmp4_send(const struct ctx *c, struct in_addr src, struct in_addr dst,
  *
  * Return: pointer at which to write the packet's payload
  */
-static void *tap_push_ip6h(struct ipv6hdr *ip6h,
-			   const struct in6_addr *src,
-			   const struct in6_addr *dst,
-			   size_t l4len, uint8_t proto, uint32_t flow)
+void *tap_push_ip6h(struct ipv6hdr *ip6h,
+		    const struct in6_addr *src, const struct in6_addr *dst,
+		    size_t l4len, uint8_t proto, uint32_t flow)
 {
 	ip6h->payload_len = htons(l4len);
 	ip6h->priority = 0;
@@ -744,7 +743,7 @@ append:
 			for (k = 0; k < p->count; )
 				k += tcp_tap_handler(c, PIF_TAP, AF_INET,
 						     &seq->saddr, &seq->daddr,
-						     p, k, now);
+						     0, p, k, now);
 		} else if (seq->protocol == IPPROTO_UDP) {
 			if (c->no_udp)
 				continue;
@@ -927,7 +926,7 @@ append:
 			for (k = 0; k < p->count; )
 				k += tcp_tap_handler(c, PIF_TAP, AF_INET6,
 						     &seq->saddr, &seq->daddr,
-						     p, k, now);
+						     seq->flow_lbl, p, k, now);
 		} else if (seq->protocol == IPPROTO_UDP) {
 			if (c->no_udp)
 				continue;
