@@ -241,9 +241,7 @@ static void *tap_push_ip6h(struct ipv6hdr *ip6h,
 	ip6h->hop_limit = 255;
 	ip6h->saddr = *src;
 	ip6h->daddr = *dst;
-	ip6h->flow_lbl[0] = (flow >> 16) & 0xf;
-	ip6h->flow_lbl[1] = (flow >> 8) & 0xff;
-	ip6h->flow_lbl[2] = (flow >> 0) & 0xff;
+	ip6_set_flow_lbl(ip6h, flow);
 	return ip6h + 1;
 }
 

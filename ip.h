@@ -90,6 +90,31 @@ struct ipv6_opt_hdr {
 	 */
 } __attribute__((packed));	/* required for some archs */
 
+/**
+ * ip6_set_flow_lbl() - Set flow label in an IPv6 header
+ * @ip6h:	Pointer to IPv6 header, updated
+ * @flow:	Set @ip6h flow label to the low 20 bits of this integer
+ */
+static inline void ip6_set_flow_lbl(struct ipv6hdr *ip6h, uint32_t flow)
+{
+	ip6h->flow_lbl[0] = (flow >> 16) & 0xf;
+	ip6h->flow_lbl[1] = (flow >> 8) & 0xff;
+	ip6h->flow_lbl[2] = (flow >> 0) & 0xff;
+}
+
+/** ip6_get_flow_lbl() - Get flow label from an IPv6 header
+ * @ip6h:	Pointer to IPv6 header
+ *
+ * Return: flow label from @ip6h as an integer (<= 20 bits)
+ */
+/* cppcheck-suppress unusedFunction */
+static inline uint32_t ip6_get_flow_lbl(const struct ipv6hdr *ip6h)
+{
+	return (ip6h->flow_lbl[0] & 0xf) << 16 |
+		ip6h->flow_lbl[1] << 8 |
+		ip6h->flow_lbl[2];
+}
+
 char *ipv6_l4hdr(const struct pool *p, int idx, size_t offset, uint8_t *proto,
 		 size_t *dlen);
 

@@ -965,9 +965,7 @@ void tcp_fill_headers(const struct tcp_tap_conn *conn,
 		ip6h->version = 6;
 		ip6h->nexthdr = IPPROTO_TCP;
 
-		ip6h->flow_lbl[0] = (conn->sock >> 16) & 0xf;
-		ip6h->flow_lbl[1] = (conn->sock >> 8) & 0xff;
-		ip6h->flow_lbl[2] = (conn->sock >> 0) & 0xff;
+		ip6_set_flow_lbl(ip6h, conn->sock);
 
 		if (!no_tcp_csum) {
 			psum = proto_ipv6_header_psum(l4len, IPPROTO_TCP,
