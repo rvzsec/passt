@@ -27,6 +27,10 @@
 
 #define SCM_MAX_FD 253 /* From Linux kernel (include/net/scm.h), not in UAPI */
 
+/* Wait for a while for TCP_REPAIR helper to connect if it's not there yet */
+#define REPAIR_ACCEPT_TIMEOUT_MS	10
+#define REPAIR_ACCEPT_TIMEOUT_US	(REPAIR_ACCEPT_TIMEOUT_MS * 1000)
+
 /* Pending file descriptors for next repair_flush() call, or command change */
 static int repair_fds[SCM_MAX_FD];
 
@@ -136,6 +140,34 @@ void repair_handler(struct ctx *c, uint32_t events)
 	(void)events;
 
 	repair_close(c);
+}
+
+/**
+ * repair_wait() - Wait (with timeout) for TCP_REPAIR helper to connect
+ * @c:		Execution context
+ */
+void repair_wait(struct ctx *c)
+{
+	struct timeval tv = { .tv_sec = 0,
+			      .tv_usec = (long)(REPAIR_ACCEPT_TIMEOUT_US) };
+	static_assert(REPAIR_ACCEPT_TIMEOUT_US < 1000 * 1000,
+		      ".tv_usec is greater than 1000 * 1000");
+
+	if (c->fd_repair >= 0 || c->fd_repair_listen == -1)
+		return;
+
+	if (setsockopt(c->fd_repair_listen, SOL_SOCKET, SO_RCVTIMEO,
+		       &tv, sizeof(tv))) {
+		err_perror("Set timeout on TCP_REPAIR listening socket");
+		return;
+	}
+
+	repair_listen_handler(c, EPOLLIN);
+
+	tv.tv_usec = 0;
+	if (setsockopt(c->fd_repair_listen, SOL_SOCKET, SO_RCVTIMEO,
+		       &tv, sizeof(tv)))
+		err_perror("Clear timeout on TCP_REPAIR listening socket");
 }
 
 /**
