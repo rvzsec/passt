@@ -61,11 +61,11 @@ allow passt_repair_t unconfined_t:unix_stream_socket { connectto read write };
 allow passt_repair_t passt_t:unix_stream_socket { connectto read write };
 allow passt_repair_t user_tmp_t:unix_stream_socket { connectto read write };
 
-allow passt_repair_t user_tmp_t:dir search;
+allow passt_repair_t user_tmp_t:dir { getattr read search watch };
 
-allow passt_repair_t unconfined_t:sock_file { read write };
-allow passt_repair_t passt_t:sock_file { read write };
-allow passt_repair_t user_tmp_t:sock_file { read write };
+allow passt_repair_t unconfined_t:sock_file { getattr read write };
+allow passt_repair_t passt_t:sock_file { getattr read write };
+allow passt_repair_t user_tmp_t:sock_file { getattr read write };
 
 allow passt_repair_t unconfined_t:tcp_socket { read setopt write };
 allow passt_repair_t passt_t:tcp_socket { read setopt write };
@@ -80,8 +80,8 @@ allow passt_repair_t passt_t:tcp_socket { read setopt write };
 allow passt_repair_t qemu_var_run_t:unix_stream_socket { connectto read write };
 allow passt_repair_t virt_var_run_t:unix_stream_socket { connectto read write };
 
-allow passt_repair_t qemu_var_run_t:dir search;
-allow passt_repair_t virt_var_run_t:dir search;
+allow passt_repair_t qemu_var_run_t:dir { getattr read search watch };
+allow passt_repair_t virt_var_run_t:dir { getattr read search watch };
 
-allow passt_repair_t qemu_var_run_t:sock_file { read write };
-allow passt_repair_t virt_var_run_t:sock_file { read write };
+allow passt_repair_t qemu_var_run_t:sock_file { getattr read write };
+allow passt_repair_t virt_var_run_t:sock_file { getattr read write };

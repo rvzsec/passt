@@ -16,11 +16,14 @@
  * off. Reply by echoing the command. Exit on EOF.
  */
 
+#include <sys/inotify.h>
 #include <sys/prctl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +42,8 @@
 #include "seccomp_repair.h"
 
 #define SCM_MAX_FD 253 /* From Linux kernel (include/net/scm.h), not in UAPI */
+#define REPAIR_EXT		".repair"
+#define REPAIR_EXT_LEN		strlen(REPAIR_EXT)
 
 /**
  * main() - Entry point and whole program with loop
@@ -51,6 +56,9 @@
  * #syscalls:repair socket s390x:socketcall i686:socketcall
  * #syscalls:repair recvfrom recvmsg arm:recv ppc64le:recv
  * #syscalls:repair sendto sendmsg arm:send ppc64le:send
+ * #syscalls:repair stat|statx stat64|statx statx
+ * #syscalls:repair fstat|fstat64 newfstatat|fstatat64
+ * #syscalls:repair inotify_init1 inotify_add_watch
  */
 int main(int argc, char **argv)
 {
@@ -58,12 +66,14 @@ int main(int argc, char **argv)
 	     __attribute__ ((aligned(__alignof__(struct cmsghdr))));
 	struct sockaddr_un a = { AF_UNIX, "" };
 	int fds[SCM_MAX_FD], s, ret, i, n = 0;
+	bool inotify_dir = false;
 	struct sock_fprog prog;
 	int8_t cmd = INT8_MAX;
 	struct cmsghdr *cmsg;
 	struct msghdr msg;
 	struct iovec iov;
 	size_t cmsg_len;
+	struct stat sb;
 	int op;
 
 	prctl(PR_SET_DUMPABLE, 0);
@@ -90,19 +100,77 @@ int main(int argc, char **argv)
 		_exit(2);
 	}
 
-	ret = snprintf(a.sun_path, sizeof(a.sun_path), "%s", argv[1]);
-	if (ret <= 0 || ret >= (int)sizeof(a.sun_path)) {
-		fprintf(stderr, "Invalid socket path: %s\n", argv[1]);
-		_exit(2);
-	}
-
 	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
 		fprintf(stderr, "Failed to create AF_UNIX socket: %i\n", errno);
 		_exit(1);
 	}
 
-	if (connect(s, (struct sockaddr *)&a, sizeof(a))) {
-		fprintf(stderr, "Failed to connect to %s: %s\n", argv[1],
+	if ((stat(argv[1], &sb))) {
+		fprintf(stderr, "Can't stat() %s: %i\n", argv[1], errno);
+		_exit(1);
+	}
+
+	if ((sb.st_mode & S_IFMT) == S_IFDIR) {
+		char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+		const struct inotify_event *ev;
+		char path[PATH_MAX + 1];
+		ssize_t n;
+		int fd;
+
+		ev = (struct inotify_event *)buf;
+
+		if ((fd = inotify_init1(IN_CLOEXEC)) < 0) {
+			fprintf(stderr, "inotify_init1: %i\n", errno);
+			_exit(1);
+		}
+
+		if (inotify_add_watch(fd, argv[1], IN_CREATE) < 0) {
+			fprintf(stderr, "inotify_add_watch: %i\n", errno);
+			_exit(1);
+		}
+
+		do {
+			n = read(fd, buf, sizeof(buf));
+			if (n < 0) {
+				fprintf(stderr, "inotify read: %i", errno);
+				_exit(1);
+			}
+
+			if (n < (ssize_t)sizeof(*ev)) {
+				fprintf(stderr, "Short inotify read: %zi", n);
+				_exit(1);
+			}
+		} while (ev->len < REPAIR_EXT_LEN ||
+			 memcmp(ev->name + strlen(ev->name) - REPAIR_EXT_LEN,
+				REPAIR_EXT, REPAIR_EXT_LEN));
+
+		snprintf(path, sizeof(path), "%s/%s", argv[1], ev->name);
+		if ((stat(path, &sb))) {
+			fprintf(stderr, "Can't stat() %s: %i\n", path, errno);
+			_exit(1);
+		}
+
+		ret = snprintf(a.sun_path, sizeof(a.sun_path), path);
+		inotify_dir = true;
+	} else {
+		ret = snprintf(a.sun_path, sizeof(a.sun_path), "%s", argv[1]);
+	}
+
+	if (ret <= 0 || ret >= (int)sizeof(a.sun_path)) {
+		fprintf(stderr, "Invalid socket path");
+		_exit(2);
+	}
+
+	if ((sb.st_mode & S_IFMT) != S_IFSOCK) {
+		fprintf(stderr, "%s is not a socket\n", a.sun_path);
+		_exit(2);
+	}
+
+	while (connect(s, (struct sockaddr *)&a, sizeof(a))) {
+		if (inotify_dir && errno == ECONNREFUSED)
+			continue;
+
+		fprintf(stderr, "Failed to connect to %s: %s\n", a.sun_path,
 			strerror(errno));
 		_exit(1);
 	}

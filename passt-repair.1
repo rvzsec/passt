@@ -16,12 +16,16 @@
 .B passt-repair
 is a privileged helper setting and clearing repair mode on TCP sockets on behalf
 of \fBpasst\fR(1), as instructed via single-byte commands over a UNIX domain
-socket, specified by \fIPATH\fR.
+socket.
 
 It can be used to migrate TCP connections between guests without granting
 additional capabilities to \fBpasst\fR(1) itself: to migrate TCP connections,
 \fBpasst\fR(1) leverages repair mode, which needs the \fBCAP_NET_ADMIN\fR
 capability (see \fBcapabilities\fR(7)) to be set or cleared.
+
+If \fIPATH\fR represents a UNIX domain socket, \fBpasst-repair\fR(1) attempts to
+connect to it. If it is a directory, \fBpasst-repair\fR(1) waits until a file
+ending with \fI.repair\fR appears in it, and then attempts to connect to it.
 
 .SH PROTOCOL
 
