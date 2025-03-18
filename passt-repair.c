@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 			_exit(1);
 		}
 
-		ret = snprintf(a.sun_path, sizeof(a.sun_path), path);
+		ret = snprintf(a.sun_path, sizeof(a.sun_path), "%s", path);
 		inotify_dir = true;
 	} else {
 		ret = snprintf(a.sun_path, sizeof(a.sun_path), "%s", argv[1]);
