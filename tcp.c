@@ -2047,6 +2047,7 @@ int tcp_tap_handler(const struct ctx *c, uint8_t pif, sa_family_t af,
 
 	/* Established connections not accepting data from tap */
 	if (conn->events & TAP_FIN_RCVD) {
+		tcp_sock_consume(conn, ntohl(th->ack_seq));
 		tcp_update_seqack_from_tap(c, conn, ntohl(th->ack_seq));
 		tcp_tap_window_update(conn, ntohs(th->window));
 		tcp_data_from_sock(c, conn);
