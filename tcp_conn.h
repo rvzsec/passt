@@ -152,6 +152,7 @@ struct tcp_tap_transfer {
  * @notsent:		Part of pending send queue that wasn't sent out yet
  * @rcvq:		Length of pending receive queue
  * @mss:		Socket-side MSS clamp
+ * @timestamp:		RFC 7323 timestamp
  * @snd_wl1:		Next sequence used in window probe (next sequence - 1)
  * @snd_wnd:		Socket-side sending window
  * @max_window:		Window clamp
@@ -171,6 +172,7 @@ struct tcp_tap_transfer_ext {
 	uint32_t	rcvq;
 
 	uint32_t	mss;
+	uint32_t	timestamp;
 
 	/* We can't just use struct tcp_repair_window: we need network order */
 	uint32_t	snd_wl1;
