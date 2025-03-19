@@ -96,8 +96,8 @@ static int seen_addrs_target_v1(struct ctx *c,
 	return 0;
 }
 
-/* Stages for version 1 */
-static const struct migrate_stage stages_v1[] = {
+/* Stages for version 2 */
+static const struct migrate_stage stages_v2[] = {
 	{
 		.name = "observed addresses",
 		.source = seen_addrs_source_v1,
@@ -118,7 +118,11 @@ static const struct migrate_stage stages_v1[] = {
 
 /* Supported encoding versions, from latest (most preferred) to oldest */
 static const struct migrate_version versions[] = {
-	{ 1,	stages_v1, },
+	{ 2,	stages_v2, },
+	/* v1 was released, but not widely used.  It had bad endianness for the
+	 * MSS and omitted timestamps, which meant it usually wouldn't work.
+	 * Therefore we don't attempt to support compatibility with it.
+	 */
 	{ 0 },
 };
 
