@@ -2333,6 +2333,15 @@ void tcp_sock_handler(const struct ctx *c, union epoll_ref ref,
 		return;
 
 	if (events & EPOLLERR) {
+		int err;
+		socklen_t sl = sizeof(err);
+
+		if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, &err, &sl))
+			flow_dbg(conn, "Error getting SO_ERROR: %s",
+				 strerror_(errno));
+		else
+			flow_dbg(conn, "Resetting due to socket error: %s",
+				 strerror_(err));
 		tcp_rst(c, conn);
 		return;
 	}
