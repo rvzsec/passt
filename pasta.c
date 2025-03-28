@@ -498,17 +498,23 @@ void pasta_netns_quit_init(const struct ctx *c)
  */
 void pasta_netns_quit_inotify_handler(struct ctx *c, int inotify_fd)
 {
-	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
-	const struct inotify_event *in_ev = (struct inotify_event *)buf;
+	char buf[sizeof(struct inotify_event) + NAME_MAX + 1]
+		__attribute__ ((aligned(__alignof__(struct inotify_event))));
+	const struct inotify_event *ev;
+	ssize_t n;
+	char *p;
 
-	if (read(inotify_fd, buf, sizeof(buf)) < (ssize_t)sizeof(*in_ev))
+	if ((n = read(inotify_fd, buf, sizeof(buf))) < (ssize_t)sizeof(*ev))
 		return;
 
-	if (strncmp(in_ev->name, c->netns_base, sizeof(c->netns_base)))
-		return;
+	for (p = buf; p < buf + n; p += sizeof(*ev) + ev->len) {
+		ev = (const struct inotify_event *)p;
 
-	info("Namespace %s is gone, exiting", c->netns_base);
-	_exit(EXIT_SUCCESS);
+		if (!strncmp(ev->name, c->netns_base, sizeof(c->netns_base))) {
+			info("Namespace %s is gone, exiting", c->netns_base);
+			_exit(EXIT_SUCCESS);
+		}
+	}
 }
 
 /**
