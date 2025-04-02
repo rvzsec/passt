@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 			}
 		} while (!found);
 
-		if (ev->len > NAME_MAX + 1 || ev->name[ev->len] != '\0') {
+		if (ev->len > NAME_MAX + 1 || ev->name[ev->len - 1] != '\0') {
 			fprintf(stderr, "Invalid filename from inotify\n");
 			_exit(1);
 		}
