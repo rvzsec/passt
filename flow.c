@@ -523,6 +523,17 @@ union flow *flow_alloc(void)
 	if (flow_first_free >= FLOW_MAX)
 		return NULL;
 
+	if (flow->f.state != FLOW_STATE_FREE) {
+		union flow *next = &flowtab[++flow_first_free];
+
+		err("=== Podman issue #25959, index: %i", flow_first_free);
+		err("=== state: %i, type: %i", flow->f.state, flow->f.type);
+		err("=== n: %i, next: %i", next->free.n, next->free.next);
+		flow_err(flow, "");
+		flow_err_details(flow);
+		ASSERT(false);
+	}
+
 	ASSERT(flow->f.state == FLOW_STATE_FREE);
 	ASSERT(flow->f.type == FLOW_TYPE_NONE);
 	ASSERT(flow->free.n >= 1);

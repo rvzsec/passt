@@ -377,8 +377,6 @@ void isolate_postfork(const struct ctx *c)
 {
 	struct sock_fprog prog;
 
-	prctl(PR_SET_DUMPABLE, 0);
-
 	switch (c->mode) {
 	case MODE_PASST:
 		prog.len = (unsigned short)ARRAY_SIZE(filter_passt);
