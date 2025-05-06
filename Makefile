@@ -32,7 +32,7 @@ endif
 
 FLAGS := -Wall -Wextra -Wno-format-zero-length -Wformat-security
 FLAGS += -pedantic -std=c11 -D_XOPEN_SOURCE=700 -D_GNU_SOURCE
-FLAGS +=  $(FORTIFY_FLAG) -O2 -pie -fPIE
+FLAGS +=  $(FORTIFY_FLAG) -g -Og -pie -fPIE
 FLAGS += -DPAGE_SIZE=$(shell getconf PAGE_SIZE)
 FLAGS += -DVERSION=\"$(VERSION)\"
 FLAGS += -DDUAL_STACK_SOCKETS=$(DUAL_STACK_SOCKETS)

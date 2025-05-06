@@ -32,6 +32,17 @@ struct udp_flow *udp_at_sidx(flow_sidx_t sidx)
 	if (!flow)
 		return NULL;
 
+	if (flow->f.type != FLOW_UDP) {
+		union flow *next = &flowtab[++flow_first_free];
+
+		err("=== Podman issue #26073, index: %i", FLOW_IDX(flow));
+		err("=== state: %i, type: %i", flow->f.state, flow->f.type);
+		err("=== n: %i, next: %i", next->free.n, next->free.next);
+		flow_err(flow, "");
+		flow_err_details(flow);
+		ASSERT(false);
+	}
+
 	ASSERT(flow->f.type == FLOW_UDP);
 	return &flow->udp;
 }
