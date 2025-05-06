@@ -727,6 +727,16 @@ static flow_sidx_t flowside_lookup(const struct ctx *c, uint8_t proto,
 		 flowside_eq(&flow->f.side[sidx.sidei], side)))
 		b = mod_sub(b, 1, FLOW_HASH_SIZE);
 
+	if (flow_sidx_valid(flow_hashtab[b]) &&
+	    !(FLOW_PROTO(&flow->f) == proto &&
+	      flow->f.pif[sidx.sidei] == pif &&
+	      flowside_eq(&flow->f.side[sidx.sidei], side))) {
+		err("=== Podman issue #26073, flowside_lookup(), index: %i", FLOW_IDX(flow));
+		flow_err(flow, "");
+		flow_err_details(flow);
+		return FLOW_SIDX_NONE;
+	}
+
 	return flow_hashtab[b];
 }
 
