@@ -98,6 +98,10 @@ static int udp_flow_sock(const struct ctx *c,
 
 	if (flowside_connect(c, s, pif, side) < 0) {
 		int rc = -errno;
+
+		if (pif == PIF_HOST)
+			epoll_del(c, s);
+
 		flow_dbg_perror(uflow, "Couldn't connect flow socket");
 		return rc;
 	}
