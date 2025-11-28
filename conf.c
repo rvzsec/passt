@@ -1947,6 +1947,10 @@ void conf(struct ctx *c, int argc, char **argv)
 		}
 	} while (name != -1);
 
+	/* Hack: force --trace on */
+	c->trace = c->debug = 1;
+	c->quiet = 0;
+
 	if (c->mode != MODE_PASTA)
 		c->no_splice = 1;
 

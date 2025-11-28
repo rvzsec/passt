@@ -161,6 +161,9 @@ static int tcp_splice_epoll_ctl(const struct ctx *c,
 	struct epoll_event ev[SIDES] = { { .data.u64 = ref[0].u64 },
 					 { .data.u64 = ref[1].u64 } };
 
+	if (conn->flags & CLOSING)
+		return 0;
+
 	tcp_splice_conn_epoll_events(conn->events, ev);
 
 
@@ -245,8 +248,10 @@ static void conn_event_do(const struct ctx *c, struct tcp_splice_conn *conn,
 			flow_dbg(conn, "%s", tcp_splice_event_str[flag_index]);
 	}
 
-	if (tcp_splice_epoll_ctl(c, conn))
+	if (tcp_splice_epoll_ctl(c, conn)) {
+		flow_dbg(conn, "CLOSING due to epoll failure");
 		conn_flag(c, conn, CLOSING);
+	}
 }
 
 #define conn_event(c, conn, event)					\
@@ -320,6 +325,7 @@ static int tcp_splice_connect_finish(const struct ctx *c,
 			if (pipe2(conn->pipe[sidei], O_NONBLOCK | O_CLOEXEC)) {
 				flow_perror(conn, "cannot create %d->%d pipe",
 					    sidei, !sidei);
+				flow_dbg(conn, "CLOSING due to pipe failure");
 				conn_flag(c, conn, CLOSING);
 				return -EIO;
 			}
@@ -449,8 +455,10 @@ void tcp_splice_conn_from_sock(const struct ctx *c, union flow *flow, int s0)
 	if (setsockopt(s0, SOL_TCP, TCP_QUICKACK, &((int){ 1 }), sizeof(int)))
 		flow_trace(conn, "failed to set TCP_QUICKACK on %i", s0);
 
-	if (tcp_splice_connect(c, conn))
+	if (tcp_splice_connect(c, conn)) {
+		flow_dbg(conn, "CLOSING due to connect failure");
 		conn_flag(c, conn, CLOSING);
+	}
 
 	FLOW_ACTIVATE(conn);
 }
@@ -473,6 +481,11 @@ void tcp_splice_sock_handler(struct ctx *c, union epoll_ref ref,
 
 	ASSERT(conn->f.type == FLOW_TCP_SPLICE);
 
+	if (conn->flags & CLOSING) {
+		flow_dbg(conn, "epoll events 0x%x on CLOSING connection",
+			 events);
+	}
+
 	if (conn->events == SPLICE_CLOSED)
 		return;
 
@@ -487,14 +500,17 @@ void tcp_splice_sock_handler(struct ctx *c, union epoll_ref ref,
 			flow_trace(conn, "Error event on socket: %s",
 				   strerror_(err));
 
+		flow_dbg(conn, "CLOSING due to socket error");
 		goto close;
 	}
 
 	if (conn->events == SPLICE_CONNECT) {
 		if (!(events & EPOLLOUT))
 			goto close;
-		if (tcp_splice_connect_finish(c, conn))
+		if (tcp_splice_connect_finish(c, conn)) {
+			flow_dbg(conn, "CLOSING due to late connect failure");
 			goto close;
+		}
 	}
 
 	if (events & EPOLLOUT) {
@@ -527,8 +543,10 @@ retry:
 					 SPLICE_F_MOVE | SPLICE_F_NONBLOCK);
 		while (readlen < 0 && errno == EINTR);
 
-		if (readlen < 0 && errno != EAGAIN)
+		if (readlen < 0 && errno != EAGAIN) {
+			flow_dbg(conn, "CLOSING due to splice() from socket failure");
 			goto close;
+		}
 
 		flow_trace(conn, "%zi from read-side call", readlen);
 
@@ -551,8 +569,10 @@ retry:
 					 SPLICE_F_MOVE | more | SPLICE_F_NONBLOCK);
 		while (written < 0 && errno == EINTR);
 
-		if (written < 0 && errno != EAGAIN)
+		if (written < 0 && errno != EAGAIN) {
+			flow_dbg(conn, "CLOSING due to splice() to socket failure");
 			goto close;
+		}
 
 		flow_trace(conn, "%zi from write-side call (passed %zi)",
 			   written, c->tcp.pipe_size);
@@ -615,8 +635,10 @@ retry:
 		}
 	}
 
-	if (CONN_HAS(conn, FIN_SENT(0) | FIN_SENT(1)))
+	if (CONN_HAS(conn, FIN_SENT(0) | FIN_SENT(1))) {
+		flow_dbg(conn, "CLOSING due to FIN_SENT(0) | FIN_SENT(1)");
 		goto close;
+	}
 
 	if ((events & (EPOLLIN | EPOLLOUT)) == (EPOLLIN | EPOLLOUT)) {
 		events = EPOLLIN;
@@ -625,8 +647,10 @@ retry:
 		goto swap;
 	}
 
-	if (events & EPOLLHUP)
+	if (events & EPOLLHUP) {
+		flow_dbg(conn, "CLOSING due to EPOLLHUP");
 		goto close;
+	}
 
 	return;
 
