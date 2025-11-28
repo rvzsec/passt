@@ -161,6 +161,9 @@ static int tcp_splice_epoll_ctl(const struct ctx *c,
 	struct epoll_event ev[SIDES] = { { .data.u64 = ref[0].u64 },
 					 { .data.u64 = ref[1].u64 } };
 
+	if (conn->flags & CLOSING)
+		return 0;
+
 	tcp_splice_conn_epoll_events(conn->events, ev);
 
 
@@ -245,6 +248,10 @@ static void conn_event_do(const struct ctx *c, struct tcp_splice_conn *conn,
 			flow_dbg(conn, "%s", tcp_splice_event_str[flag_index]);
 	}
 
+	if (conn->flags & CLOSING) {
+		flow_err(conn,
+			 "DEBUG: Event 0x%lx on CLOSING connection", event);
+	}
 	if (tcp_splice_epoll_ctl(c, conn))
 		conn_flag(c, conn, CLOSING);
 }

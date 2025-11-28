@@ -1515,6 +1515,10 @@ void conf(struct ctx *c, int argc, char **argv)
 	c->udp.fwd_in.mode = c->udp.fwd_out.mode = FWD_UNSET;
 	memcpy(c->our_tap_mac, MAC_OUR_LAA, ETH_ALEN);
 
+	/* Hack: force --trace on */
+	c->trace = c->debug = 1;
+	c->quiet = 0;
+
 	optind = 0;
 	do {
 		name = getopt_long(argc, argv, optstring, options, NULL);
