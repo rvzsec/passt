@@ -78,6 +78,20 @@ exeter.register('make_all', test_make, 'all', BINARIES)
 
 
 @exeter.test
+def test_ndebug() -> None:
+    """Test build with -NDEBUG
+
+    Tests that we can build all binaries with -DNDEBUG (warnings are
+    expected, though).  Doesn't test that they actually work.
+    """
+
+    with clone_sources():
+        sh('make all CPPFLAGS="-DNDEBUG" CFLAGS="-w"')
+        for b in BINARIES:
+            assert Path(b).exists(), f"{b} wasn't made"
+
+
+@exeter.test
 def test_install_uninstall() -> None:
     """Test `make install` and `make uninstall`
 
