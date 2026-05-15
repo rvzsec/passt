@@ -6,6 +6,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <assert.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -60,7 +61,7 @@ void abort_with_msg(const char *fmt, ...)
 			__func__, __FILE__, __LINE__, STRINGIFY(expr))
 #else
 #define assert_with_msg(expr, ...)					\
-	((void)(expr), 0 ? (void)0 : abort_with_msg(__VA_ARGS__))
+	((void)(expr), 1 ? (void)0 : abort_with_msg(__VA_ARGS__))
 #endif
 
 #ifdef P_tmpdir
