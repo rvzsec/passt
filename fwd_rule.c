@@ -709,7 +709,9 @@ void fwd_rule_parse(char optname, bool del, const char *optarg,
 				p++;
 			}
 
-			if (!inany_pton(p, &addr_buf))
+			if (strcmp(p, "*") == 0)
+				addr = NULL;
+			else if (!inany_pton(p, &addr_buf))
 				die("Bad forwarding address '%s'", p);
 		}
 	} else {
