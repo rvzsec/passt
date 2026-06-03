@@ -26,8 +26,10 @@ jobs:
           cd upstream.git
           git remote set-url --push origin \
             "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          # Push every upstream branch and tag, prune deletions.
+          # Push every upstream branch and tag to origin, prune deletions.
           # Explicit refspecs ensure refs/heads/mirror-meta on origin is NEVER touched.
+          # Cannot use --mirror flag here because it conflicts with refspecs;
+          # the explicit refspecs do the same job, scoped to heads + tags only.
           git push --prune --force origin \
             'refs/heads/*:refs/heads/*' \
             'refs/tags/*:refs/tags/*'
