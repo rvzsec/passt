@@ -1,0 +1,33 @@
+name: sync-upstream
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours
+  workflow_dispatch:         # manual trigger button
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mirror passt.top -> origin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --mirror https://passt.top/passt upstream.git
+          cd upstream.git
+          git remote set-url --push origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # Push every upstream branch and tag, prune deletions.
+          # Explicit refspecs ensure refs/heads/mirror-meta on origin is NEVER touched.
+          git push --prune --force origin \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'
